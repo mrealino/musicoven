@@ -210,7 +210,7 @@ Como é uma aplicação pessoal, a recomendação é uma arquitetura **simples e
 
 ```
 Artist
-  id, name, sort_name, mbid, deezer_id, itunes_id, image_url, country, genres
+  id, name, sort_name, mbid, deezer_id, itunes_id, allmusic_id, image_url, country, genres
 
 Follow
   artist_id, release_types[], notify_mode (always | digest_only), followed_at
@@ -218,7 +218,7 @@ Follow
 Release
   id, artist_id, title, normalized_title, type (album | ep | single | live | compilation | reissue),
   release_date, date_precision (day | month | year), status (announced | released),
-  cover_url, genres, source_ids {mbid, deezer_id, itunes_id}, first_seen_at, updated_at
+  cover_url, genres, styles, source_ids {mbid, deezer_id, itunes_id, allmusic_id}, first_seen_at, updated_at
 
 ReleaseLink
   release_id, service (apple_music | deezer | spotify | youtube_music | tidal | bandcamp …), url
