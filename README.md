@@ -170,9 +170,12 @@ Todas são públicas e nenhuma exige que o usuário conecte uma conta pessoal.
 | **[iTunes Search API](https://performance-partners.apple.com/search-api)** | Álbuns por artista no catálogo da Apple, inclusive pré-lançamentos | Gratuita, sem autenticação; tem limite de taxa |
 | **[Odesli / song.link API](https://odesli.co)** | A partir de um link, gera links para os outros serviços de streaming | Base para os "links universais" |
 | **[Cover Art Archive](https://coverartarchive.org)** | Capas de álbuns ligadas ao MusicBrainz | Complementa as capas do Deezer/iTunes |
+| **[AllMusic](https://www.allmusic.com)** | Página de *New Releases* semanal, discografias, gêneros/estilos e resenhas para enriquecer o catálogo e servir de conferência da cobertura | Não tem API pública oficial: o acesso seria por leitura das páginas, respeitando os termos de uso e o `robots.txt`, com baixa frequência e cache. Por isso, entra como fonte complementar e de auditoria, não como fonte principal |
 | **Last.fm API** (opcional) | Importar artistas mais ouvidos de um perfil público e sugerir artistas relacionados | Usa só o nome de usuário público, sem login |
 
 **Estratégia de cruzamento:** o MusicBrainz é a "identidade" do artista. Para cada artista guardamos os IDs equivalentes no Deezer e no iTunes. A cada varredura, as três fontes são consultadas, e os álbuns são unidos por *(artista, título normalizado, data ± tolerância)*.
+
+O AllMusic entra como camada extra: a lista semanal de *New Releases* é comparada com os artistas seguidos para encontrar lançamentos que as outras fontes ainda não trouxeram (O1, O4). Os gêneros e estilos do AllMusic também enriquecem os filtros do catálogo.
 
 ## 9. Arquitetura proposta
 
@@ -184,7 +187,7 @@ Como é uma aplicação pessoal, a recomendação é uma arquitetura **simples e
 │  catálogo, busca │     │  artistas, catálogo, config   │     │  SQLite → Postgres │
 │  configurações   │     ├───────────────────────────────┤     └────────────────────┘
 └──────────────────┘     │  Agendador (jobs)             │
-                         │  • varredura de lançamentos   │──► MusicBrainz / Deezer / iTunes
+                         │  • varredura de lançamentos   │──► MusicBrainz / Deezer / iTunes / AllMusic
                          │  • avisos do dia / véspera    │──► Odesli (links)
                          │  • resumo semanal             │──► ntfy / Telegram / e-mail
                          └───────────────────────────────┘
@@ -238,6 +241,7 @@ As visões por **semana / mês / ano** são consultas sobre `Release.release_dat
 ### Fase 0: Fundação
 - [ ] Definir a stack final e criar a estrutura do repositório
 - [ ] Clientes para MusicBrainz, Deezer e iTunes, respeitando os limites de taxa
+- [ ] Avaliar os termos de uso do AllMusic e definir como ler as páginas de *New Releases* e de discografia
 - [ ] Esquema do banco de dados e migrações
 
 ### Fase 1: MVP "nunca mais perder um lançamento" (O1, O2, O5)
