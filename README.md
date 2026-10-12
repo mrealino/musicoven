@@ -1,10 +1,14 @@
 # 🎶 musicoven
 
-> Saiba quando seus artistas favoritos lançam um álbum, no dia em que ele sai, e guarde tudo num catálogo organizado por mês e ano.
+> Saiba quando seus artistas e selos favoritos lançam um álbum, no dia em que ele sai, e guarde tudo num catálogo organizado por semana, mês e ano.
 
-O **musicoven** é uma aplicação pessoal que acompanha os lançamentos de álbuns dos artistas que você segue, avisa no dia do lançamento (ou antes, se o lançamento já tiver sido anunciado) e mantém um histórico consultável do que saiu em cada semana, mês e ano.
+O **musicoven** é uma aplicação pessoal (PWA) que acompanha os lançamentos de álbuns dos artistas e selos que você segue, avisa por push no dia do lançamento (e quando um álbum é anunciado) e mantém um histórico consultável do que saiu em cada período.
 
-Ele **não depende de uma assinatura nem de conectar contas de streaming**. Você monta sua lista de artistas diretamente no app, e os dados de lançamento vêm de fontes públicas de metadados musicais.
+Ele **não depende de uma assinatura nem de conectar contas de streaming**. Você monta sua lista de artistas e selos no próprio app, e os dados de lançamento vêm de fontes públicas de metadados musicais.
+
+📐 **Plano visual completo (trains, features, wagons, interlockings, WMBTs, contratos, jornadas, telas e telemetria):** [Musicoven Plan](https://claude.ai/artifact/LESiQMUboHDJudKcfLiZuA)
+
+> **Status:** plano decomposto e revisado (fase 2). Nada foi escrito em `plan/` ainda; a escrita dos YAMLs começa quando o plano for aprovado.
 
 ---
 
@@ -12,18 +16,15 @@ Ele **não depende de uma assinatura nem de conectar contas de streaming**. Voc�
 
 1. [O problema](#1-o-problema)
 2. [Job to be Done](#2-job-to-be-done)
-3. [Outcomes desejados](#3-outcomes-desejados)
+3. [Outcomes (WMBT) e metas](#3-outcomes-wmbt-e-metas)
 4. [Princípios do produto](#4-princípios-do-produto)
-5. [Funcionalidades](#5-funcionalidades)
-6. [Mapa de outcomes → funcionalidades](#6-mapa-de-outcomes--funcionalidades)
-7. [Fluxos principais](#7-fluxos-principais)
+5. [Decomposição ATDD](#5-decomposição-atdd)
+6. [Telas sugeridas](#6-telas-sugeridas)
+7. [Plano de telemetria](#7-plano-de-telemetria)
 8. [Fontes de dados](#8-fontes-de-dados)
-9. [Arquitetura proposta](#9-arquitetura-proposta)
-10. [Modelo de dados](#10-modelo-de-dados)
-11. [Roadmap](#11-roadmap)
-12. [Métricas de sucesso](#12-métricas-de-sucesso)
-13. [Riscos e mitigações](#13-riscos-e-mitigações)
-14. [Questões em aberto](#14-questões-em-aberto)
+9. [Stack e decisões em aberto (ADRs)](#9-stack-e-decisões-em-aberto-adrs)
+10. [Roadmap](#10-roadmap)
+11. [Questões em aberto](#11-questões-em-aberto)
 
 ---
 
@@ -38,126 +39,204 @@ Quem acompanha muitos artistas perde lançamentos com frequência, porque:
 
 ## 2. Job to be Done
 
-> **Estar ciente sobre os lançamentos de álbuns de artistas que gosto e organizar essa informação por mês e ano para lembrar o que foi lançado e quando, ao longo do tempo.**
-
-O job se divide em dois momentos:
+> **Stay aware of album releases from the artists and labels I follow, and keep them organized by week, month and year so I remember what came out and when.**
+>
+> *(Estar ciente sobre os lançamentos de álbuns dos artistas e selos que sigo e organizar essa informação por semana, mês e ano para lembrar o que foi lançado e quando.)*
 
 | Momento | Pergunta do usuário |
 |---|---|
-| **Descoberta e aviso** (presente/futuro) | "Algum artista que eu sigo lançou ou vai lançar um álbum?" |
+| **Descoberta e aviso** (presente/futuro) | "Algum artista ou selo que eu sigo lançou ou vai lançar um álbum?" |
 | **Memória** (passado) | "O que foi lançado nesta semana / neste mês / neste ano?" |
 
-## 3. Outcomes desejados
+## 3. Outcomes (WMBT) e metas
 
-| # | Outcome | Direção |
-|---|---|---|
-| O1 | Probabilidade de perder lançamentos de álbuns de artistas que gosto | ⬇️ minimizar |
-| O2 | Probabilidade de ficar sabendo quando os álbuns de artistas que gosto são lançados | ⬆️ maximizar |
-| O3 | Tempo para verificar quais álbuns foram lançados semanalmente | ⬇️ minimizar |
-| O4 | Frequência de perder lançamentos por não ficar sabendo | ⬇️ reduzir |
-| O5 | Probabilidade de ser notificado na data do lançamento | ⬆️ aumentar |
-| O6 | Probabilidade de não conseguir ouvir o álbum na data do lançamento | ⬇️ minimizar |
-| O7 | Probabilidade de saber quais álbuns foram lançados por ano | ⬆️ aumentar |
-| O8 | Tempo para saber quais álbuns foram lançados por período (semana e ano) | ⬇️ minimizar |
+Cada outcome virou pelo menos um WMBT (*What Must Be True*), posicionado no wagon que o controla. As **metas são propostas** e precisam da sua validação.
+
+| # | Outcome | Meta proposta | WMBTs |
+|---|---|---|---|
+| U1 | Minimizar a probabilidade de perder lançamentos de álbuns de artistas que sigo | ≥ 95% dos álbuns de artistas seguidos detectados (auditoria mensal) | `fetch-releases:M001`, `fetch-releases:R001`, `classify-releases:E001` |
+| U2 | Maximizar a probabilidade de ficar sabendo quando os álbuns de artistas que gosto são lançados | ≥ 99% das notificações de lançamento entregues | `notify-releases:E001` |
+| U3 | Minimizar o tempo para verificar quais álbuns foram lançados semanalmente | verificação semanal < 2 min | `classify-releases:E001`, `show-releases:L001` |
+| U4 | Reduzir a frequência de perder lançamentos por não ficar sabendo | ≤ 1 lançamento por mês ainda não visto 7 dias após sair | `show-releases:M001`, `notify-releases:R001` |
+| U5 | Aumentar a probabilidade de ser notificado na data do lançamento | ≥ 90% notificados na data do lançamento (horário local) | `notify-releases:E002`, `schedule-release-events:P001` |
+| U6 | Minimizar a probabilidade de não conseguir ouvir o álbum na data do lançamento | ≥ 90% dos lançamentos abrem no serviço preferido no dia | `link-streams:E001` |
+| U7 | Aumentar a probabilidade de saber quais álbuns foram lançados por ano | 100% dos lançamentos detectados mantidos; qualquer ano listado em < 30 s | `classify-releases:K001`, `show-releases:L002` |
+| U8 | Minimizar o tempo para saber quais álbuns foram lançados por período (semana e ano) | trocar semana ↔ mês ↔ ano em < 1 s | `show-releases:Y001` |
+| U9 | Minimizar o tempo para ver tudo o que é novo dos artistas seguidos | tudo o que é novo desde a última visita revisado em < 2 min | `show-releases:M001` |
+| U10 | Minimizar o esforço para montar a lista de artistas seguidos | primeiros 20 seguidos em < 10 min | `sync-library:K001`, `resolve-artists:L001`, `manage-follows:D001` |
+| U11 | Aumentar a probabilidade de saber de lançamentos futuros antes de saírem | ≥ 70% dos álbuns conhecidos ≥ 7 dias antes do lançamento | `classify-releases:M001`, `schedule-release-events:P001` |
+| U12 | Minimizar a probabilidade de esquecer um lançamento salvo para depois | ≥ 80% dos favoritos abertos em até 30 dias | `sync-library:K001`, `mark-releases:M001` |
+| U13 | Minimizar a probabilidade de perder um lançamento de selos seguidos | ≥ 95% dos lançamentos de selos seguidos detectados | `resolve-artists:L002`, `fetch-releases:L001` |
 
 ## 4. Princípios do produto
 
-1. **Independente de streaming.** A lista de artistas pertence ao usuário e não a uma plataforma. Nenhum login de streaming é obrigatório.
-2. **Cobertura acima de tudo.** É melhor cruzar várias fontes e remover duplicatas do que depender de uma só e perder um lançamento (O1, O4).
-3. **No dia certo.** O aviso precisa chegar na data do lançamento, e antes dela quando o lançamento já foi anunciado (O5).
-4. **Do aviso ao play em um toque.** Cada notificação já leva aos links do álbum em vários serviços de streaming (O6).
-5. **O catálogo é permanente.** Todo lançamento detectado fica registrado e pode ser consultado por semana, mês e ano (O7, O8).
-6. **Pouco atrito.** Um resumo semanal deve bastar para quem não quer abrir o app todo dia (O3).
+1. **Independente de streaming.** A lista de artistas e selos pertence ao usuário. Nenhum login de streaming é exigido; o login do musicoven serve só para sincronizar a biblioteca entre dispositivos.
+2. **Cobertura acima de tudo.** Várias fontes são cruzadas e as duplicatas removidas, para não perder lançamentos (U1, U13).
+3. **No dia certo.** O aviso chega na data do lançamento, no fuso do usuário, e antes dela quando o álbum é anunciado (U5, U11).
+4. **Do aviso ao play em um toque.** Cada notificação e cada lançamento abre no serviço de streaming preferido (U6).
+5. **O catálogo é permanente.** Todo lançamento detectado fica registrado por semana, mês e ano, mesmo após deixar de seguir o artista (U7, U8).
+6. **Silêncio nunca esconde falha.** O app mostra quando verificou as fontes pela última vez e marca o que não foi notificado (U4).
 
-## 5. Funcionalidades
+## 5. Decomposição ATDD
 
-### 5.1 Gestão de artistas seguidos
-- **Busca e follow de artistas** por nome, com desambiguação (foto, país, gêneros, álbuns conhecidos) para não seguir o artista homônimo errado.
-- **Importação em massa (opcional)**, sem conectar contas:
-  - colar uma lista de nomes (um por linha);
-  - importar um arquivo CSV/TXT;
-  - importar uma biblioteca exportada (ex.: arquivo de biblioteca do Apple Music/iTunes, histórico do Last.fm por nome de usuário público).
-- **Sugestões de artistas** relacionados aos que você já segue (fase posterior).
-- **Preferências por artista**: tipos de lançamento acompanhados (álbum, EP, single, ao vivo, coletânea, deluxe/reedição) e prioridade de notificação (avisar sempre / só no resumo).
+A decomposição segue as convenções de planejamento do [`afokapu/atdd-bun`](https://github.com/afokapu/atdd-bun) (`planner-nodes/` e `planner-schemas/`), em três passes:
 
-### 5.2 Detecção de lançamentos
-- **Job agendado** (ex.: a cada 6 horas) que consulta as fontes de dados para cada artista seguido.
-- **Cruzamento de múltiplas fontes** com deduplicação: o mesmo álbum vindo de fontes diferentes vira um único registro.
-- **Lançamentos futuros (anunciados)**: quando a fonte informa uma data futura, o álbum entra como "anunciado" e passa para "lançado" na data.
-- **Filtro por tipo**: por padrão só álbuns de estúdio e EPs; singles, coletâneas e reedições são opcionais.
-- **Atualização de datas**: se a data de um lançamento anunciado mudar, o registro é atualizado e o usuário é avisado.
+1. **Sistêmico:** job principal, outcomes, mapa das 9 etapas do job, temas e o grafo de artefatos entre wagons.
+2. **Sistemático:** cada artefato escrito conforme o schema: trains, wagons, features, WMBTs, acceptances, contratos, interlockings, jornadas, telas e telemetria.
+3. **Adversarial:** um script verifica as regras contra o plano (nomes verbo-objeto, ciclos, cobertura, categorias de rota, residuais, telemetria) e revisa a stack.
 
-### 5.3 Notificações
-- **No dia do lançamento**: "🎉 *Artista* lançou *Álbum* hoje", com capa e links para ouvir.
-- **Lançamento anunciado**: aviso quando um novo álbum é anunciado, com a data prevista.
-- **Lembrete na véspera** (opcional) para lançamentos anunciados.
-- **Resumo semanal** (ex.: sexta-feira, quando a maioria dos lançamentos sai): todos os álbuns da semana numa única mensagem.
-- **Canais** (configuráveis, mais de um ao mesmo tempo para redundância):
-  - push no celular (ex.: [ntfy](https://ntfy.sh) ou Web Push/PWA);
-  - bot no Telegram;
-  - e-mail.
-- **Feed de calendário (.ics)**: lançamentos anunciados aparecem no calendário do usuário (Google Calendar, Apple Calendar etc.).
-- **Feed RSS** dos lançamentos, como alternativa passiva.
+**Tamanho:** 14 trains · 11 wagons · 17 features · 23 WMBTs · 30 acceptances · 27 contratos · 4 interlockings · 4 jornadas · 11 telas · 25 itens de telemetria.
 
-### 5.4 Ouvir no dia
-- **Links universais** para o álbum em vários serviços (Apple Music, Deezer, YouTube Music, Tidal, Bandcamp, Spotify…), gerados automaticamente.
-- **Serviço preferido**: o usuário escolhe o serviço principal e o botão "Ouvir" da notificação abre direto nele.
-- **Status "disponível"**: indicar se o álbum já aparece nos serviços (alguns lançamentos chegam com atraso em certas plataformas).
+### 5.1 Temas e subjects
 
-### 5.5 Catálogo / histórico
-- **Linha do tempo** de lançamentos, organizada por **ano → mês → semana**.
-- **Visões rápidas**: "Esta semana", "Este mês", "Este ano", "Próximos lançamentos".
-- **Página do ano**: todos os álbuns lançados no ano pelos artistas seguidos, com capas em grade, contagem por mês e filtros por artista, gênero e tipo.
-- **Página do artista**: discografia detectada pelo app, em ordem cronológica.
-- **Busca e filtros**: por artista, título, gênero, tipo e período.
-- **Marcações pessoais** (fase posterior): "ouvido", "quero ouvir", nota e favoritos, para virar também um diário musical.
-- **Exportação** do catálogo (CSV/JSON) para o usuário não ficar preso ao app.
+| Índice | Tema | Escopo |
+|---|---|---|
+| 0 | `commons` | Sincronização e backup da biblioteca entre dispositivos |
+| 1 | `account` | Login: quem é o usuário em cada dispositivo |
+| 2 | `artist` | Quais artistas e selos são seguidos |
+| 3 | `release` | Coletar, classificar (selo, artista, álbum, ano), listar e abrir lançamentos |
+| 4 | `alert` | Avisar sobre lançamentos: notificações e eventos de calendário |
 
-### 5.6 Configurações
-- Fuso horário e dia/horário do resumo semanal.
-- Canais de notificação e serviço de streaming preferido.
-- Tipos de lançamento acompanhados (padrão global + exceções por artista).
-
-## 6. Mapa de outcomes → funcionalidades
-
-| Outcome | Funcionalidades que atendem |
+| Subject | Significado |
 |---|---|
-| **O1** Minimizar perder lançamentos | Cruzamento de fontes; job agendado frequente; importação em massa de artistas; desambiguação de artistas |
-| **O2** Maximizar ficar sabendo | Notificação no dia; aviso de anúncio; múltiplos canais; feed .ics e RSS |
-| **O3** Minimizar tempo de verificação semanal | Resumo semanal; visão "Esta semana" |
-| **O4** Reduzir perdas por não ficar sabendo | Canais redundantes; resumo semanal como rede de segurança; feed .ics |
-| **O5** Notificar na data do lançamento | Detecção de lançamentos anunciados; agendamento do aviso para a data; lembrete na véspera |
-| **O6** Conseguir ouvir na data | Links universais; serviço preferido; status de disponibilidade |
-| **O7** Saber o que saiu por ano | Catálogo permanente; página do ano; exportação |
-| **O8** Minimizar tempo para consultar por período | Linha do tempo ano → mês → semana; visões rápidas; filtros |
+| `session` | A sessão do usuário num dispositivo |
+| `follow-list` | Os artistas e selos seguidos |
+| `release` | Um lançamento de artista ou selo seguido |
+| `feed` | A linha do tempo e o catálogo que o usuário navega |
 
-## 7. Fluxos principais
+### 5.2 Wagons e features
 
-### Fluxo 1: Onboarding
-1. O usuário abre o app e define o fuso horário.
-2. Adiciona artistas por busca, colando uma lista ou importando um arquivo.
-3. Para nomes ambíguos, escolhe o artista correto numa lista com foto e contexto.
-4. Escolhe os canais de notificação e o serviço de streaming preferido.
-5. O app faz uma **varredura inicial** e preenche o catálogo com os lançamentos recentes (ex.: últimos 12 meses) e os próximos anunciados.
+| Wagon | Tema | Responsabilidade | Features |
+|---|---|---|---|
+| `authenticate-listener` | account | Entra com um link de uso único enviado por e-mail, para que a mesma biblioteca acompanhe o usuário em todos os dispositivos. | `authenticate-magic-link` (**adicionada**) |
+| `sync-library` | commons | Mantém o servidor como fonte da verdade e reaplica mudanças feitas offline num dispositivo. | `sync-account-library` (**adaptada**) |
+| `resolve-artists` | artist | Encontra artistas e selos pelo nome nas fontes (MusicBrainz primeiro) e devolve uma identidade para cada. | `search-catalog-artists`<br>`search-record-labels` |
+| `manage-follows` | artist | Mantém a lista de artistas e selos seguidos e recusa duplicatas. | `manage-artist-follows`<br>`manage-label-follows` |
+| `fetch-releases` | release | Consulta as fontes para cada artista e selo seguido, em horários agendados e dentro dos limites de taxa, e registra indisponibilidades. | `poll-release-catalog` |
+| `classify-releases` | release | Transforma candidatos em um lançamento cada, classificado por selo, artista, tipo (álbum, EP, single, ao vivo…) e ano, já lançado ou futuro, e guarda para sempre. | `classify-release-kinds`<br>`track-upcoming-releases` |
+| `show-releases` | release | A linha do tempo: novidades desde a última visita, esta semana, próximos e o catálogo por semana, mês e ano, com filtros por tipo, artista e selo. | `show-release-timeline`<br>`filter-release-kinds`<br>`filter-artists-labels`<br>`partition-release-timeline` |
+| `link-streams` | release | Abre o lançamento no serviço de streaming preferido, ou avisa que ainda não está disponível. | `open-streaming-app` (**adicionada**) |
+| `mark-releases` | release | Salva lançamentos para ouvir depois. | `mark-listen-later` |
+| `notify-releases` | alert | Envia push (ntfy) quando um artista ou selo seguido lança ou anuncia um álbum, uma vez por lançamento e tipo, na hora local configurada; marca como não visto no app se o push falhar. | `notify-new-releases` |
+| `schedule-release-events` | alert | Adiciona um lançamento futuro ao calendário (evento .ics). | `schedule-calendar-events` |
 
-### Fluxo 2: Detecção → notificação
-```
-[Agendador] → para cada artista seguido → consulta fontes
-      → normaliza e remove duplicatas → compara com o catálogo
-      → novo lançamento?
-           ├─ data futura   → salva como "anunciado" → notifica anúncio → agenda aviso para a data
-           └─ data ≤ hoje   → salva como "lançado"   → busca links de streaming → notifica
-```
+Diferenças em relação às features escolhidas:
+- **adicionada:** `authenticate-listener:authenticate-magic-link`, necessária para o tema Login;
+- **adicionada:** `link-streams:open-streaming-app`, porque nada na seleção atende o U6 (ouvir no dia do lançamento). Confirmar se fica;
+- **adaptada:** `sync-icloud-library` virou `sync-account-library`, porque uma PWA não acessa o iCloud.
 
-### Fluxo 3: Resumo semanal
-1. No dia/horário configurado, o app reúne os lançamentos dos últimos 7 dias.
-2. Envia uma mensagem única com capas, artistas e links.
-3. A mensagem tem um link para a visão "Esta semana" do catálogo.
+### 5.3 Trains
 
-### Fluxo 4: Consulta ao catálogo
-1. O usuário abre o catálogo, que mostra o ano corrente por padrão.
-2. Navega por mês ou semana, ou pula para outro ano.
-3. Filtra por artista/gênero/tipo e abre o álbum para ver detalhes e links.
+| Train | Categoria | Origem | O que acontece |
+|---|---|---|---|
+| `train:session:sign-in` | nominal | adicionado | O usuário entra num dispositivo e recebe a biblioteca. |
+| `train:session:resume-offline` | alternativo | adicionado | Um dispositivo volta a ficar online e os favoritos feitos offline são sincronizados. |
+| `train:follow-list:add-artist-manually` | nominal | pedido | O usuário busca um artista e passa a segui-lo. |
+| `train:follow-list:add-label-manually` | alternativo | pedido | O usuário busca um selo e passa a segui-lo. |
+| `train:follow-list:refuse-duplicate-follow` | exceção | adicionado | Seguir algo que já é seguido é recusado. |
+| `train:release:detect-new` | nominal | pedido | Um lançamento sai (novo, ou um anunciado cujo dia chegou) e o usuário é notificado. |
+| `train:release:detect-upcoming` | alternativo | pedido | Um álbum é anunciado: o usuário recebe o anúncio e ele aparece em Próximos. |
+| `train:release:refuse-duplicate-alert` | exceção | adicionado | Um lançamento já notificado é visto de novo e não gera segundo push. |
+| `train:release:tolerate-outage` | erro | adicionado | Uma fonte está fora do ar; as outras rodam e a janela é repetida. |
+| `train:release:flag-undelivered` | erro | adicionado | O ntfy está inacessível; o lançamento é marcado como não visto no app. |
+| `train:feed:browse-timeline` | nominal | adicionado | O usuário abre a linha do tempo ou o catálogo e ouve um lançamento. |
+| `train:feed:bookmark-release` | alternativo | pedido | O usuário salva um lançamento; ele aparece em Ouvir depois. |
+| `train:feed:add-to-calendar` | alternativo | pedido | O usuário adiciona um lançamento futuro ao calendário. |
+| `train:feed:streaming-unavailable` | erro | adicionado | O lançamento ainda não está no serviço de streaming. |
+
+Os 6 trains pedidos foram mantidos. Os demais foram adicionados para que cada interlocking tenha uma rota nominal e trate as categorias de erro e exceção.
+
+### 5.4 Interlockings e jornadas
+
+| Interlocking | Ações de entrada | Rotas | Categorias sem rota |
+|---|---|---|---|
+| `interlocking:session` | `sign_in`, `resume_online` | `sign-in` → `train:session:sign-in` (nominal)<br>`resume` → `train:session:resume-offline` (alternativo) | exceção: residual `residual:expired-sign-in-link`<br>erro: residual `residual:sign-in-mail-outage` |
+| `interlocking:follow` | `add_artist`, `add_label` | `artist` → `train:follow-list:add-artist-manually` (nominal)<br>`label` → `train:follow-list:add-label-manually` (alternativo)<br>`duplicate` → `train:follow-list:refuse-duplicate-follow` (exceção) | erro: residual `residual:search-source-outage` |
+| `interlocking:release-scan` | `scan_releases` | `new` → `train:release:detect-new` (nominal)<br>`upcoming` → `train:release:detect-upcoming` (alternativo)<br>`duplicate` → `train:release:refuse-duplicate-alert` (exceção)<br>`outage` → `train:release:tolerate-outage` (erro)<br>`undelivered` → `train:release:flag-undelivered` (erro) | — |
+| `interlocking:timeline` | `open_view`, `bookmark_release`, `add_to_calendar`, `listen` | `browse` → `train:feed:browse-timeline` (nominal)<br>`bookmark` → `train:feed:bookmark-release` (alternativo)<br>`calendar` → `train:feed:add-to-calendar` (alternativo)<br>`unavailable` → `train:feed:streaming-unavailable` (erro) | exceção: residual `residual:untracked-period` |
+
+| Jornada | Entrada | Continuações |
+|---|---|---|
+| `journey:sign-in` | `interlocking:session` | — |
+| `journey:follow-artists` | `interlocking:follow` | rota `artist` → `artist:follows` → `interlocking:release-scan`<br>rota `label` → `artist:follows` → `interlocking:release-scan` |
+| `journey:stay-current` | `interlocking:release-scan` | — |
+| `journey:browse-releases` | `interlocking:timeline` | — |
+
+Seguir um artista ou selo dispara imediatamente uma varredura de lançamentos (continuação `artist:follows` → `interlocking:release-scan`).
+
+### 5.5 Contratos
+
+Cada artefato tem identidade `tema:aspecto[.variante]` e contrato em `contracts/<tema>/.../<aspecto>.schema.json`.
+
+| Contrato | Produzido por | Consumido por |
+|---|---|---|
+| `account:refusals` | `wagon:authenticate-listener` | `user:listener` |
+| `account:session` | `wagon:authenticate-listener` | `wagon:sync-library` |
+| `account:sign-in-request` | entrada do usuário/sistema | `wagon:authenticate-listener` |
+| `alert:calendar-events` | `wagon:schedule-release-events` | `user:listener` |
+| `alert:deliveries` | `wagon:notify-releases` | `user:listener` |
+| `alert:duplicates` | `wagon:notify-releases` | `system:monitor` |
+| `alert:undelivered` | `wagon:notify-releases` | `wagon:show-releases` |
+| `artist:duplicate-follows` | `wagon:manage-follows` | `user:listener` |
+| `artist:follows` | `wagon:manage-follows` | `wagon:fetch-releases`, `wagon:notify-releases`, `user:listener` |
+| `artist:identities` | `wagon:resolve-artists` | `wagon:manage-follows` |
+| `artist:label-query` | entrada do usuário/sistema | `wagon:resolve-artists` |
+| `artist:query` | entrada do usuário/sistema | `wagon:resolve-artists` |
+| `commons:backup` | `wagon:sync-library` | `wagon:manage-follows`, `wagon:mark-releases` |
+| `commons:offline-changes` | entrada do usuário/sistema | `wagon:sync-library` |
+| `release:availability-gap` | `wagon:link-streams` | `user:listener` |
+| `release:candidates` | `wagon:fetch-releases` | `wagon:classify-releases` |
+| `release:entries` | `wagon:classify-releases` | `wagon:show-releases`, `wagon:notify-releases` |
+| `release:entries.upcoming` | `wagon:classify-releases` | `wagon:show-releases`, `wagon:notify-releases` |
+| `release:feed` | `wagon:show-releases` | `user:listener` |
+| `release:feed-request` | entrada do usuário/sistema | `wagon:show-releases` |
+| `release:fetch-gaps` | `wagon:fetch-releases` | `wagon:classify-releases` |
+| `release:links` | `wagon:link-streams` | `user:listener` |
+| `release:mark-request` | entrada do usuário/sistema | `wagon:mark-releases` |
+| `release:marks` | `wagon:mark-releases` | `wagon:show-releases`, `user:listener` |
+| `release:retry-schedule` | `wagon:classify-releases` | `system:scheduler` |
+| `release:scan-request` | entrada do usuário/sistema | `wagon:fetch-releases` |
+| `release:selection` | `wagon:show-releases` | `wagon:link-streams`, `wagon:schedule-release-events` |
+
+## 6. Telas sugeridas
+
+| Tela | Rota | Para quê | Outcomes |
+|---|---|---|---|
+| S01 · Entrar | `/entrar` | Entrar com um link enviado por e-mail. | — |
+| S02 · Primeiros artistas | `/comecar` | Montar a lista de seguidos na primeira sessão. | U10 |
+| S03 · Buscar | `/buscar` | Encontrar artistas e selos e segui-los. | U10, U13 |
+| S04 · Seguindo | `/seguindo` | Ver e editar artistas e selos seguidos. | U10, U13 |
+| S05 · Novidades | `/` | Início: tudo o que é novo desde a última visita e nesta semana, com filtros e status da última verificação. | U3, U9, U4, U1 |
+| S06 · Próximos | `/proximos` | Álbuns anunciados com contagem regressiva; adicionar ao calendário. | U11, U5 |
+| S07 · Catálogo | `/catalogo/2025` | Lançamentos por semana, mês e ano; grade de capas e contagem por mês. | U7, U8 |
+| S08 · Lançamento | `/lancamento/:id` | Um lançamento: dados, Ouvir, salvar, calendário. | U6, U12 |
+| S09 · Ouvir depois | `/ouvir-depois` | Lançamentos salvos, os mais antigos primeiro. | U12 |
+| S10 · Ajustes | `/ajustes` | Notificações (tópico ntfy + teste), hora, fuso, serviço preferido, dispositivos. | U2, U5 |
+| S11 · Notificação push | `ntfy` | O próprio push: o que chega na tela de bloqueio. | U2, U5 |
+
+Os wireframes de baixa fidelidade estão no [plano visual](https://claude.ai/artifact/LESiQMUboHDJudKcfLiZuA#screens).
+
+## 7. Plano de telemetria
+
+Cada item segue o schema de tracking plan do atdd-bun: um arquivo por item em `telemetry/<tema>/<artefato>/<tipo>.<plano>[.<medida>].json`, com dono (o wagon que produz o artefato), acceptances que o exigem, dimensões sem alta cardinalidade e propriedades proibidas (e-mail, tópico do ntfy, tokens).
+
+| Outcome | Como medir | Itens |
+|---|---|---|
+| U1 | ≥ 95% dos álbuns de artistas seguidos detectados (auditoria mensal) | `event:be:release:candidates`<br>`metric:be:release:candidates:staleness`<br>`metric:be:release:candidates:success_rate`<br>`metric:be:release:fetch-gaps:count`<br>`event:be:release:entries` |
+| U2 | ≥ 99% das notificações de lançamento entregues | `event:be:alert:deliveries`<br>`metric:be:alert:deliveries:success_rate` |
+| U3 | verificação semanal < 2 min | `event:be:release:entries`<br>`event:ui:release:feed`<br>`metric:ux:release:feed:duration` |
+| U4 | ≤ 1 lançamento por mês ainda não visto 7 dias após sair | `metric:be:alert:undelivered:count` |
+| U5 | ≥ 90% notificados na data do lançamento (horário local) | `metric:be:release:candidates:staleness`<br>`event:be:alert:deliveries`<br>`metric:be:alert:deliveries:latency` |
+| U6 | ≥ 90% dos lançamentos abrem no serviço preferido no dia | `event:ui:release:links`<br>`metric:be:release:availability-gap:count` |
+| U7 | 100% dos lançamentos detectados mantidos; qualquer ano listado em < 30 s | `event:be:release:entries`<br>`metric:be:release:entries:count`<br>`event:ui:release:feed` |
+| U8 | trocar semana ↔ mês ↔ ano em < 1 s | `metric:ui:release:feed:latency` |
+| U9 | tudo o que é novo desde a última visita revisado em < 2 min | `event:ui:release:feed`<br>`metric:ux:release:feed:duration` |
+| U10 | primeiros 20 seguidos em < 10 min | `metric:be:commons:backup:success_rate`<br>`event:ui:artist:identities`<br>`event:ui:artist:follows`<br>`metric:ux:artist:follows:duration` |
+| U11 | ≥ 70% dos álbuns conhecidos ≥ 7 dias antes do lançamento | `metric:be:release:entries:age`<br>`event:ui:alert:calendar-events` |
+| U12 | ≥ 80% dos favoritos abertos em até 30 dias | `metric:be:commons:backup:success_rate`<br>`event:ui:release:marks`<br>`metric:be:release:marks:age` |
+| U13 | ≥ 95% dos lançamentos de selos seguidos detectados | `event:ui:artist:identities`<br>`event:be:release:candidates`<br>`metric:be:release:candidates:success_rate` |
+
+Armazenamento sugerido: uma tabela de eventos no mesmo banco, atrás de uma `TelemetryPort`, e uma página `/metrics` simples, sem SDK de terceiros.
 
 ## 8. Fontes de dados
 
@@ -165,142 +244,68 @@ Todas são públicas e nenhuma exige que o usuário conecte uma conta pessoal.
 
 | Fonte | Uso | Observações |
 |---|---|---|
-| **[MusicBrainz API](https://musicbrainz.org/doc/MusicBrainz_API)** | Fonte principal de artistas (IDs estáveis/MBID) e *release groups* com tipo (álbum, EP, single) e data | Gratuita e aberta; limite de ~1 req/s e exige User-Agent identificado; às vezes a data de lançamento demora a ser cadastrada |
+| **[MusicBrainz API](https://musicbrainz.org/doc/MusicBrainz_API)** | Fonte principal de artistas, **selos** (MBID) e *release groups* com tipo e data | Gratuita e aberta; ~1 req/s e User-Agent identificado |
 | **[Deezer API](https://developers.deezer.com/api)** | Lançamentos recentes por artista, capas, datas e link para ouvir | Pública, sem autenticação para leitura |
 | **[iTunes Search API](https://performance-partners.apple.com/search-api)** | Álbuns por artista no catálogo da Apple, inclusive pré-lançamentos | Gratuita, sem autenticação; tem limite de taxa |
-| **[Odesli / song.link API](https://odesli.co)** | A partir de um link, gera links para os outros serviços de streaming | Base para os "links universais" |
-| **[Cover Art Archive](https://coverartarchive.org)** | Capas de álbuns ligadas ao MusicBrainz | Complementa as capas do Deezer/iTunes |
-| **[AllMusic](https://www.allmusic.com)** | Página de *New Releases* semanal, discografias, gêneros/estilos e resenhas para enriquecer o catálogo e servir de conferência da cobertura | Não tem API pública oficial: o acesso seria por leitura das páginas, respeitando os termos de uso e o `robots.txt`, com baixa frequência e cache. Por isso, entra como fonte complementar e de auditoria, não como fonte principal |
-| **Last.fm API** (opcional) | Importar artistas mais ouvidos de um perfil público e sugerir artistas relacionados | Usa só o nome de usuário público, sem login |
+| **[Odesli / song.link API](https://odesli.co)** | Links para os outros serviços de streaming | Base do "Ouvir no serviço preferido" |
+| **[Cover Art Archive](https://coverartarchive.org)** | Capas ligadas ao MusicBrainz | Complementa Deezer/iTunes |
+| **[AllMusic](https://www.allmusic.com)** | *New Releases* semanal, discografias, gêneros e estilos para conferir a cobertura | Sem API pública oficial: leitura das páginas com baixa frequência e cache, respeitando termos de uso e `robots.txt`; fonte complementar |
 
-**Estratégia de cruzamento:** o MusicBrainz é a "identidade" do artista. Para cada artista guardamos os IDs equivalentes no Deezer e no iTunes. A cada varredura, as três fontes são consultadas, e os álbuns são unidos por *(artista, título normalizado, data ± tolerância)*.
+As fontes são detalhe de implementação: no plano elas ficam atrás de `fetch-releases:poll-release-catalog` e `resolve-artists`, e a escolha é registrada em ADR.
 
-O AllMusic entra como camada extra: a lista semanal de *New Releases* é comparada com os artistas seguidos para encontrar lançamentos que as outras fontes ainda não trouxeram (O1, O4). Os gêneros e estilos do AllMusic também enriquecem os filtros do catálogo.
-
-## 9. Arquitetura proposta
-
-Como é uma aplicação pessoal, a recomendação é uma arquitetura **simples e barata de manter**: um único backend com agendador embutido e um banco de dados leve.
-
-```
-┌──────────────────┐     ┌───────────────────────────────┐     ┌────────────────────┐
-│  Frontend (PWA)  │◄───►│  API (backend)                │◄───►│  Banco de dados    │
-│  catálogo, busca │     │  artistas, catálogo, config   │     │  SQLite → Postgres │
-│  configurações   │     ├───────────────────────────────┤     └────────────────────┘
-└──────────────────┘     │  Agendador (jobs)             │
-                         │  • varredura de lançamentos   │──► MusicBrainz / Deezer / iTunes / AllMusic
-                         │  • avisos do dia / véspera    │──► Odesli (links)
-                         │  • resumo semanal             │──► ntfy / Telegram / e-mail
-                         └───────────────────────────────┘
-                               │
-                               └──► feeds .ics e RSS
-```
-
-**Stack sugerida** (pode ser revista antes da fase 1):
+## 9. Stack e decisões em aberto (ADRs)
 
 | Camada | Escolha | Por quê |
 |---|---|---|
 | Backend | Python + FastAPI | Simples, ótimo para integrar APIs e escrever jobs |
 | Agendador | APScheduler (no próprio backend) | Evita infraestrutura extra; dá para trocar por cron depois |
 | Banco | SQLite no início, Postgres se precisar | Zero configuração para uso pessoal |
-| Frontend | PWA (ex.: React/Vite ou HTMX) | Instalável no celular e permite Web Push |
-| Notificações | ntfy (push) + Telegram bot + e-mail | Canais gratuitos e redundantes |
-| Hospedagem | VPS pequena, Fly.io/Railway ou Raspberry Pi em casa | O app precisa ficar ligado para os jobs rodarem |
+| Frontend | PWA (React) | Instalável no celular e permite Web Push |
+| Notificações | ntfy (push) | Gratuito |
+| Hospedagem | Vercel | — |
 
-## 10. Modelo de dados
+A revisão adversarial encontrou conflitos entre a stack e os outcomes. Eles precisam de decisão antes da implementação:
 
-```
-Artist
-  id, name, sort_name, mbid, deezer_id, itunes_id, allmusic_id, image_url, country, genres
+1. **Vercel × APScheduler.** Na Vercel, o Python roda como função serverless: não existe processo contínuo, então o APScheduler não dispara. Isso contradiz o motivo "o app precisa ficar ligado para os jobs rodarem". O Vercel Cron pode chamar um endpoint de varredura, mas no plano Hobby roda no máximo uma vez por dia, o que é pouco para U1 e U5. Opções:
+   - **A:** Vercel só para a PWA; FastAPI + APScheduler num host sempre ligado (Fly.io, Railway, Render).
+   - **B:** tudo na Vercel, com Vercel Cron (plano Pro para execuções por hora) chamando `/jobs/scan` e `/jobs/notify`, sem APScheduler.
+   - **C:** Vercel para o app e um workflow agendado do GitHub Actions chamando o endpoint de varredura a cada poucas horas.
+2. **SQLite em serverless.** As funções da Vercel têm sistema de arquivos somente leitura (só `/tmp`, temporário), então o catálogo permanente (U7) se perderia. Use Postgres hospedado desde o início (Neon, Supabase, Vercel Postgres) ou libSQL/Turso. O SQLite só continua viável com a opção A (host com volume).
+3. **Redundância de notificação.** A stack cita canais "redundantes", mas só lista o ntfy. Hoje o U4 depende do ntfy mais a marca de "não notificado" no app. Sugestão: Web Push da PWA como segundo canal.
+4. **Telemetria.** Não há ferramenta na stack. Sugestão: tabela de eventos própria (seção 7).
+5. **Login.** Link mágico por e-mail é a sugestão (passkeys são alternativa); ele exige um provedor de e-mail transacional.
 
-Follow
-  artist_id, release_types[], notify_mode (always | digest_only), followed_at
-
-Release
-  id, artist_id, title, normalized_title, type (album | ep | single | live | compilation | reissue),
-  release_date, date_precision (day | month | year), status (announced | released),
-  cover_url, genres, styles, source_ids {mbid, deezer_id, itunes_id, allmusic_id}, first_seen_at, updated_at
-
-ReleaseLink
-  release_id, service (apple_music | deezer | spotify | youtube_music | tidal | bandcamp …), url
-
-Notification
-  id, release_id, kind (announced | release_day | eve | date_changed | weekly_digest),
-  channel, sent_at, status
-
-UserEntry   (fase posterior)
-  release_id, listened (bool), rating, favorite, notes
-
-Settings
-  timezone, digest_weekday, digest_time, channels{}, preferred_service, default_release_types[]
-```
-
-As visões por **semana / mês / ano** são consultas sobre `Release.release_date`. Não há tabelas separadas para elas.
-
-## 11. Roadmap
+## 10. Roadmap
 
 ### Fase 0: Fundação
-- [ ] Definir a stack final e criar a estrutura do repositório
-- [ ] Clientes para MusicBrainz, Deezer e iTunes, respeitando os limites de taxa
-- [ ] Avaliar os termos de uso do AllMusic e definir como ler as páginas de *New Releases* e de discografia
-- [ ] Esquema do banco de dados e migrações
+- [ ] Decidir os ADRs da seção 9 (hospedagem, banco, notificação, telemetria, login)
+- [ ] Escrever `plan/` (temas, subjects, wagons, features, WMBTs, trains, interlockings, jornadas) e `contracts/`, e ativar o `atdd-bun` (`planner`, `topology`, `traceability`, `telemetry`)
+- [ ] Clientes MusicBrainz, Deezer e iTunes com controle de taxa
 
-### Fase 1: MVP "nunca mais perder um lançamento" (O1, O2, O5)
-- [ ] Busca de artistas com desambiguação e follow/unfollow
-- [ ] Importação de lista de artistas (colar texto / CSV)
-- [ ] Job de varredura com cruzamento de fontes e deduplicação
-- [ ] Detecção de lançamentos anunciados e lançados
-- [ ] Notificação no dia do lançamento por um canal (ntfy ou Telegram)
+### Fase 1: Seguir e detectar (U1, U10, U13)
+- [ ] `train:session:sign-in` e `train:session:resume-offline`
+- [ ] `train:follow-list:add-artist-manually`, `add-label-manually`, `refuse-duplicate-follow`
+- [ ] `train:release:tolerate-outage` e varredura agendada
 
-### Fase 2: Ouvir no dia + resumo semanal (O3, O4, O6)
-- [ ] Links universais via Odesli e serviço preferido
-- [ ] Resumo semanal configurável
-- [ ] Aviso de anúncio e lembrete na véspera
-- [ ] Canais adicionais (e-mail) e feed .ics
+### Fase 2: Avisar no dia (U2, U4, U5, U11)
+- [ ] `train:release:detect-new`, `detect-upcoming`, `refuse-duplicate-alert`, `flag-undelivered`
+- [ ] Ajustes de notificação (tópico ntfy, teste, hora, fuso)
 
-### Fase 3: Catálogo (O7, O8)
-- [ ] Linha do tempo ano → mês → semana
-- [ ] Visões rápidas (semana, mês, ano, próximos)
-- [ ] Página do ano e página do artista
-- [ ] Busca, filtros e exportação CSV/JSON
+### Fase 3: Ver e lembrar (U3, U6, U7, U8, U9, U12)
+- [ ] `train:feed:browse-timeline`, `streaming-unavailable`, `bookmark-release`, `add-to-calendar`
+- [ ] Catálogo por semana, mês e ano; Ouvir depois
 
-### Fase 4: Refinamentos
-- [ ] PWA instalável com Web Push
-- [ ] Marcações pessoais (ouvido, nota, favorito)
-- [ ] Importação via Last.fm e sugestões de artistas relacionados
-- [ ] Feed RSS
-- [ ] Estatísticas anuais ("seu ano em lançamentos")
+### Fase 4: Medir
+- [ ] Itens do plano de telemetria e página `/metrics` com as metas da seção 3
+- [ ] Auditoria mensal de cobertura (U1, U13)
 
-## 12. Métricas de sucesso
+## 11. Questões em aberto
 
-| Outcome | Métrica | Meta inicial |
-|---|---|---|
-| O1, O4 | % de lançamentos de artistas seguidos que o app detectou (auditoria manual mensal) | ≥ 95% |
-| O2, O5 | % de lançamentos notificados até o fim do dia do lançamento | ≥ 90% |
-| O5 | Atraso médio entre o lançamento e a notificação | < 12 h |
-| O6 | % de notificações com link funcional para o serviço preferido | ≥ 90% |
-| O3 | Tempo para revisar o resumo semanal | < 2 min |
-| O7, O8 | Tempo para responder "o que saiu em [mês/ano]?" no catálogo | < 30 s |
-
-## 13. Riscos e mitigações
-
-| Risco | Mitigação |
-|---|---|
-| Uma fonte demora a cadastrar um lançamento | Cruzar várias fontes; resumo semanal como rede de segurança |
-| Artistas homônimos geram falsos positivos | Desambiguação no follow; guardar IDs por fonte |
-| Duplicatas (deluxe, remaster, edições regionais) | Normalização de títulos; agrupar por *release group*; filtro de reedições |
-| Limites de taxa das APIs | Fila com controle de taxa, cache e varreduras escalonadas |
-| Datas imprecisas (só ano ou mês) | Campo `date_precision`; notificar quando a data exata for confirmada |
-| Mudanças ou descontinuação de APIs externas | Camada de "provedores" isolada para trocar uma fonte sem mexer no resto |
-| O servidor fica fora do ar e perde a janela do aviso | Ao reiniciar, o job recupera e envia avisos pendentes; monitoramento simples (healthcheck) |
-
-## 14. Questões em aberto
-
-- Uso **só pessoal** ou com suporte a vários usuários no futuro? Isso afeta autenticação e modelo de dados.
-- Quais **canais de notificação** priorizar no MVP: push (ntfy), Telegram ou e-mail?
-- Singles devem notificar por padrão ou só aparecer no catálogo?
-- Onde hospedar: nuvem gerenciada ou servidor em casa?
-- Qual **serviço de streaming principal** usar como padrão nos links?
-
----
-
-*Este plano será refinado com a análise de funcionalidades e fluxos de uma plataforma de referência.*
+- Qual opção de hospedagem (A, B ou C) e qual banco?
+- A feature `open-streaming-app`, adicionada para cobrir o U6, fica?
+- Que hora local deve sair o push do dia de lançamento?
+- Quais tipos de lançamento notificam por padrão (só álbum e EP?)
+- Qual o serviço de streaming preferido padrão?
+- Seguir um artista novo deve trazer lançamentos antigos para o catálogo? Até quantos anos?
+- As metas propostas na seção 3 estão certas?
+- O U10 (esforço para montar a lista) depende só de busca manual. Importar de uma biblioteca ou do Last.fm reduziria muito esse esforço: entra no escopo?
